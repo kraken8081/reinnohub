@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import ProjectCard from '../components/ProjectCard';
 import { api, Project } from '../services/api';
@@ -96,9 +97,9 @@ export default function Home() {
         <p className="text-sm text-[var(--muted)] mb-2">
           <span className="font-playfair font-semibold">ReInnoHub</span> · 再保险创新中心 · 2025
         </p>
-        <a href="/admin" className="text-[10px] text-[var(--line)] hover:text-[var(--muted)] uppercase tracking-widest transition-colors">
+        <Link to="/admin" className="text-[10px] text-[var(--line)] hover:text-[var(--muted)] uppercase tracking-widest transition-colors">
           Admin Access
-        </a>
+        </Link>
       </footer>
     </div>
   );
