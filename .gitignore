@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local database (no longer needed with Supabase)
+server/data.db
+
+# Uploads (now using Supabase Storage)
+uploads/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vercel
+.vercel
