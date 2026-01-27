@@ -46,15 +46,10 @@ export default function Home() {
       <main className="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 py-10 sm:py-12">
         {/* Hero Section - Editorial Style */}
         <section className="mb-16 animate-fade-rise relative">
-          {/* Decorative Number */}
-          <div className="absolute -left-4 -top-10 text-[12rem] font-playfair font-bold text-[var(--ink)] opacity-[0.03] select-none pointer-events-none leading-none">
-            01
-          </div>
-
           <div className="relative z-10 flex flex-col items-center text-center">
             <div className="flex items-center gap-4 text-[11px] uppercase tracking-[0.4em] text-[var(--muted)] mb-6">
               <span className="h-px w-8 bg-[var(--accent)] opacity-60" />
-              <span className="font-medium">Issue 01 · 2025</span>
+              <span className="font-medium">项目展示平台</span>
               <span className="h-px w-8 bg-[var(--accent)] opacity-60" />
             </div>
 
