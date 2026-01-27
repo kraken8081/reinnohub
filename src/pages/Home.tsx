@@ -49,7 +49,7 @@ export default function Home() {
           <div className="relative z-10 flex flex-col items-center text-center">
             <div className="flex items-center gap-4 text-[11px] uppercase tracking-[0.4em] text-[var(--muted)] mb-6">
               <span className="h-px w-8 bg-[var(--accent)] opacity-60" />
-              <span className="font-medium">项目展示平台</span>
+              <span className="font-medium">行业创新观察</span>
               <span className="h-px w-8 bg-[var(--accent)] opacity-60" />
             </div>
 
