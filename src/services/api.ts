@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export interface Project {
   id: string;
   title: string;
@@ -11,24 +13,63 @@ export interface Project {
 }
 
 const API_BASE_URL = '/api';
+const ADMIN_TOKEN_STORAGE_KEY = 'admin_write_token';
+
+const getAdminToken = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const existing = window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+  if (existing) {
+    return existing;
+  }
+  const input = window.prompt('请输入管理写入密钥');
+  if (!input) {
+    return '';
+  }
+  window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, input);
+  return input;
+};
+
+const withAdminHeaders = () => {
+  const token = getAdminToken();
+  return token ? { 'x-admin-token': token } : {};
+};
+
+const parseJson = async (response: Response) => {
+  const text = await response.text();
+  if (!text) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const requireOk = async (response: Response) => {
+  if (response.ok) {
+    return;
+  }
+  const payload = await parseJson(response);
+  const message = typeof payload === 'string' ? payload : payload?.error || 'Request failed';
+  throw new Error(message);
+};
 
 export const api = {
   // Get all projects
   getProjects: async (): Promise<Project[]> => {
     const response = await fetch(`${API_BASE_URL}/projects`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch projects');
-    }
-    return response.json();
+    await requireOk(response);
+    return (await response.json()) as Project[];
   },
 
   // Get single project
   getProject: async (id: string): Promise<Project> => {
     const response = await fetch(`${API_BASE_URL}/projects/${id}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch project');
-    }
-    return response.json();
+    await requireOk(response);
+    return (await response.json()) as Project;
   },
 
   // Create a new project
@@ -37,13 +78,12 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...withAdminHeaders()
       },
-      body: JSON.stringify(project),
+      body: JSON.stringify(project)
     });
-    if (!response.ok) {
-      throw new Error('Failed to create project');
-    }
-    return response.json();
+    await requireOk(response);
+    return (await response.json()) as Project;
   },
 
   // Update a project
@@ -52,58 +92,90 @@ export const api = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...withAdminHeaders()
       },
-      body: JSON.stringify(project),
+      body: JSON.stringify(project)
     });
-    if (!response.ok) {
-      throw new Error('Failed to update project');
-    }
-    return response.json();
+    await requireOk(response);
+    return (await response.json()) as Project;
   },
 
   // Delete a project
   deleteProject: async (id: string): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
       method: 'DELETE',
+      headers: {
+        ...withAdminHeaders()
+      }
     });
-    if (!response.ok) {
-      throw new Error('Failed to delete project');
-    }
+    await requireOk(response);
   },
 
-  // Upload an image
+  // Upload an image to Supabase Storage
   uploadImage: async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('image', file);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `screenshots/${fileName}`;
 
-    const response = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      body: formData,
-    });
+    const { error: uploadError } = await supabase.storage
+      .from('project-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
 
-    if (!response.ok) {
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
       throw new Error('Failed to upload image');
     }
 
-    const data = await response.json();
-    return data.url;
+    // Get public URL
+    const { data } = supabase.storage
+      .from('project-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
   },
 
-  // Capture screenshot from URL
+  // Capture screenshot - This will use an Edge Function or external service
+  // For now, we'll return a placeholder and handle this differently
   captureScreenshot: async (url: string): Promise<{ url: string; meta: { title: string; description: string; content: string; tags: string[] } }> => {
-    const response = await fetch(`${API_BASE_URL}/screenshot`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url }),
-    });
+    // Option 1: Use a third-party screenshot service
+    // Option 2: Use Supabase Edge Functions with Puppeteer
+    // For now, we'll fetch metadata only and use a placeholder image
 
-    if (!response.ok) {
-      throw new Error('Failed to capture screenshot');
+    try {
+      // Try to fetch Open Graph metadata using a CORS proxy or edge function
+      // This is a simplified version - in production, use an edge function
+      const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const meta = data.data || {};
+
+        return {
+          url: meta.screenshot?.url || meta.image?.url || '',
+          meta: {
+            title: meta.title || '',
+            description: meta.description || '',
+            content: '',
+            tags: []
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching metadata:', error);
     }
 
-    const data = await response.json();
-    return data;
+    // Fallback
+    return {
+      url: '',
+      meta: {
+        title: '',
+        description: '',
+        content: '',
+        tags: []
+      }
+    };
   }
 };
