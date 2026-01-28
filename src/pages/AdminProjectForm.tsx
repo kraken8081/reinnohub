@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { api } from '../services/api';
-import { ArrowLeft, Upload, Loader2, Save, Camera, Sparkles } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, Save, Sparkles } from 'lucide-react';
 
 export default function Admin() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [initializing, setInitializing] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -18,6 +21,43 @@ export default function Admin() {
     imageUrl: '',
     content: ''
   });
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    let isActive = true;
+    setInitializing(true);
+
+    api.getProject(id)
+      .then(project => {
+        if (!isActive) {
+          return;
+        }
+        setFormData({
+          title: project.title,
+          description: project.description,
+          url: project.url,
+          tags: project.tags.join(', '),
+          imageUrl: project.imageUrl,
+          content: project.content || ''
+        });
+      })
+      .catch(error => {
+        console.error('Failed to load project:', error);
+        alert('Failed to load project.');
+      })
+      .finally(() => {
+        if (isActive) {
+          setInitializing(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -74,20 +114,33 @@ export default function Admin() {
     try {
       const tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
 
-      await api.createProject({
-        title: formData.title,
-        description: formData.description,
-        url: formData.url,
-        imageUrl: formData.imageUrl,
-        content: formData.content,
-        tags: tagsArray
-      });
+      if (isEdit && id) {
+        await api.updateProject(id, {
+          title: formData.title,
+          description: formData.description,
+          url: formData.url,
+          imageUrl: formData.imageUrl,
+          content: formData.content,
+          tags: tagsArray
+        });
+        alert('Project updated successfully!');
+        navigate('/admin');
+      } else {
+        await api.createProject({
+          title: formData.title,
+          description: formData.description,
+          url: formData.url,
+          imageUrl: formData.imageUrl,
+          content: formData.content,
+          tags: tagsArray
+        });
 
-      alert('Project created successfully!');
-      navigate('/');
+        alert('Project created successfully!');
+        navigate('/');
+      }
     } catch (error) {
-      console.error('Failed to create project:', error);
-      alert('Failed to create project.');
+      console.error('Failed to save project:', error);
+      alert('Failed to save project.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +159,9 @@ export default function Admin() {
         </button>
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-[var(--line)]">
-          <h2 className="font-playfair text-3xl text-[var(--ink)] mb-8">Add New Project</h2>
+          <h2 className="font-playfair text-3xl text-[var(--ink)] mb-8">
+            {isEdit ? 'Edit Project' : 'Add New Project'}
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* URL & Smart Extract */}
@@ -237,7 +292,7 @@ export default function Admin() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || uploading || capturing}
+              disabled={loading || uploading || capturing || initializing}
               className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[var(--ink)] hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ink)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (

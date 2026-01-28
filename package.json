@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
+    "@supabase/supabase-js": "^2.91.0",
     "cannon-es": "^0.20.0",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",
