@@ -1,5 +1,3 @@
-import { supabase } from '../lib/supabase';
-
 export interface Project {
   id: string;
   title: string;
@@ -113,28 +111,34 @@ export const api = {
 
   // Upload an image to Supabase Storage
   uploadImage: async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `screenshots/${fileName}`;
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        resolve(result);
+      };
+      reader.onerror = () => {
+        reject(reader.error || new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(file);
+    });
 
-    const { error: uploadError } = await supabase.storage
-      .from('project-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    const response = await fetch(`${API_BASE_URL}/storage/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...withAdminHeaders()
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+        data: base64
+      })
+    });
 
-    if (uploadError) {
-      console.error('Error uploading image:', uploadError);
-      throw new Error('Failed to upload image');
-    }
-
-    // Get public URL
-    const { data } = supabase.storage
-      .from('project-images')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+    await requireOk(response);
+    const payload = await response.json();
+    return payload.url as string;
   },
 
   // Capture screenshot - This will use an Edge Function or external service

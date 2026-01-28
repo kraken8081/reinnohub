@@ -22,12 +22,26 @@ function normalizeProject(row: any) {
     title: row.title,
     description: row.description,
     url: row.url,
-    imageUrl: row.image_url || '',
+    imageUrl: toProxyImageUrl(row.image_url || ''),
     tags: row.tags || [],
     content: row.content || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function toProxyImageUrl(imageUrl: string) {
+  if (!imageUrl) {
+    return '';
+  }
+  if (imageUrl.startsWith('/api/storage/')) {
+    return imageUrl;
+  }
+  const match = imageUrl.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+  if (match) {
+    return `/api/storage/${match[1]}/${match[2]}`;
+  }
+  return imageUrl;
 }
 
 function parseBody(req: VercelRequest) {
