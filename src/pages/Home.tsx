@@ -4,19 +4,78 @@ import Header from '../components/Header';
 import ProjectCard from '../components/ProjectCard';
 import { api, Project } from '../services/api';
 
+const PROJECTS_CACHE_KEY = 'projects_cache_v1';
+const PROJECTS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+type ProjectsCachePayload = {
+  version: 1;
+  timestamp: number;
+  data: Project[];
+};
+
+const readProjectsCache = (): Project[] | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(PROJECTS_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as ProjectsCachePayload;
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.data)) {
+      return null;
+    }
+    if (Date.now() - parsed.timestamp > PROJECTS_CACHE_TTL_MS) {
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const writeProjectsCache = (data: Project[]) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    const payload: ProjectsCachePayload = {
+      version: 1,
+      timestamp: Date.now(),
+      data
+    };
+    window.localStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore cache write errors (storage full, disabled, etc.).
+  }
+};
+
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const cached = readProjectsCache();
+    if (cached) {
+      setProjects(cached);
+      setLoading(false);
+    }
+
     const fetchProjects = async () => {
       try {
         const data = await api.getProjects();
         setProjects(data);
+        writeProjectsCache(data);
       } catch (error) {
         console.error('Failed to load projects:', error);
+        if (!cached) {
+          setLoading(false);
+        }
       } finally {
-        setLoading(false);
+        if (!cached) {
+          setLoading(false);
+        }
       }
     };
 

@@ -81,6 +81,17 @@ function requireAdmin(req: VercelRequest, res: VercelResponse) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
+    const fresh = req.query.fresh === '1';
+    if (fresh) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else {
+      // Cache on the edge to avoid hitting the database on every request.
+      res.setHeader(
+        'Cache-Control',
+        'public, max-age=120, s-maxage=21600, stale-while-revalidate=86400'
+      );
+    }
+
     const { data, error } = await supabase
       .from('projects')
       .select('*')

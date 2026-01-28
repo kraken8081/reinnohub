@@ -13,6 +13,10 @@ export interface Project {
 const API_BASE_URL = '/api';
 const ADMIN_TOKEN_STORAGE_KEY = 'admin_write_token';
 
+type GetProjectsOptions = {
+  fresh?: boolean;
+};
+
 const getAdminToken = () => {
   if (typeof window === 'undefined') {
     return '';
@@ -57,8 +61,11 @@ const requireOk = async (response: Response) => {
 
 export const api = {
   // Get all projects
-  getProjects: async (): Promise<Project[]> => {
-    const response = await fetch(`${API_BASE_URL}/projects`);
+  getProjects: async (options: GetProjectsOptions = {}): Promise<Project[]> => {
+    const url = options.fresh
+      ? `${API_BASE_URL}/projects?fresh=1`
+      : `${API_BASE_URL}/projects`;
+    const response = await fetch(url, options.fresh ? { cache: 'no-store' } : undefined);
     await requireOk(response);
     return (await response.json()) as Project[];
   },
