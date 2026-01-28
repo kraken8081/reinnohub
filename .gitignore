@@ -34,3 +34,15 @@ uploads/
 
 # Vercel
 .vercel
+
+# Local AI/dev tooling
+.agent/
+.agents/
+.claude/
+.codebuddy/
+.codex/
+.cursor/
+.gemini/
+.kiro/
+.opencode/
+.trae/
