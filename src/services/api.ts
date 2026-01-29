@@ -17,20 +17,49 @@ type GetProjectsOptions = {
   fresh?: boolean;
 };
 
-const getAdminToken = () => {
+const getStoredAdminToken = () => {
   if (typeof window === 'undefined') {
     return '';
   }
-  const existing = window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
-  if (existing) {
+  return window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
+};
+
+const setStoredAdminToken = (token: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+};
+
+const clearStoredAdminToken = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+};
+
+const promptAdminToken = (force = false) => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const existing = getStoredAdminToken();
+  if (!force && existing) {
     return existing;
   }
-  const input = window.prompt('请输入管理写入密钥');
+  const input = window.prompt('请输入管理写入密钥', existing || '');
   if (!input) {
     return '';
   }
-  window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, input);
+  setStoredAdminToken(input);
   return input;
+};
+
+const getAdminToken = () => {
+  const existing = getStoredAdminToken();
+  if (existing) {
+    return existing;
+  }
+  return promptAdminToken();
 };
 
 const withAdminHeaders = () => {
@@ -56,7 +85,15 @@ const requireOk = async (response: Response) => {
   }
   const payload = await parseJson(response);
   const message = typeof payload === 'string' ? payload : payload?.error || 'Request failed';
-  throw new Error(message);
+  const error = new Error(message) as Error & { status?: number };
+  error.status = response.status;
+  throw error;
+};
+
+export const adminToken = {
+  has: () => Boolean(getStoredAdminToken()),
+  prompt: (force = false) => promptAdminToken(force),
+  clear: () => clearStoredAdminToken()
 };
 
 export const api = {

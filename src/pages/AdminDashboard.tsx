@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { api, Project } from '../services/api';
+import { api, adminToken, Project } from '../services/api';
 import { Plus, Pencil, Trash2, ArrowLeft, ExternalLink, Calendar } from 'lucide-react';
+
+type AuthStatus = 'ready' | 'missing' | 'invalid';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(adminToken.has() ? 'ready' : 'missing');
 
   useEffect(() => {
     fetchProjects();
@@ -24,6 +27,16 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAuthUpdate = (force = false) => {
+    const token = adminToken.prompt(force);
+    setAuthStatus(token ? 'ready' : 'missing');
+  };
+
+  const handleAuthClear = () => {
+    adminToken.clear();
+    setAuthStatus('missing');
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
       return;
@@ -32,8 +45,15 @@ export default function AdminDashboard() {
     try {
       await api.deleteProject(id);
       setProjects(prev => prev.filter(p => p.id !== id));
+      setAuthStatus('ready');
     } catch (error) {
       console.error('Failed to delete project:', error);
+      const status = (error as { status?: number }).status;
+      if (status === 401) {
+        setAuthStatus('invalid');
+        alert('管理密钥无效或未配置，请重新输入。');
+        return;
+      }
       alert('Failed to delete project.');
     }
   };
@@ -60,6 +80,37 @@ export default function AdminDashboard() {
           >
             <Plus className="w-4 h-4 mr-2" /> New Project
           </button>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-[var(--line)] bg-white px-5 py-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)] mb-1">Admin Access</p>
+              <p className="text-sm text-[var(--ink)]">
+                {authStatus === 'ready' && '管理写入密钥已设置，可进行增删改操作。'}
+                {authStatus === 'missing' && '未检测到管理写入密钥，新增/编辑/删除需要先输入密钥。'}
+                {authStatus === 'invalid' && '管理写入密钥无效，请重新输入。'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleAuthUpdate(authStatus !== 'missing')}
+                className="px-3 py-1.5 text-xs font-medium rounded-full border border-[var(--line)] text-[var(--ink)] hover:border-[var(--ink)] transition-colors"
+              >
+                {authStatus === 'ready' ? '更新密钥' : '输入密钥'}
+              </button>
+              {authStatus !== 'missing' && (
+                <button
+                  type="button"
+                  onClick={handleAuthClear}
+                  className="px-3 py-1.5 text-xs font-medium rounded-full border border-red-200 text-red-600 hover:border-red-400 transition-colors"
+                >
+                  清除密钥
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Project List */}

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/Header';
-import { api } from '../services/api';
+import { api, adminToken } from '../services/api';
 import { ArrowLeft, Upload, Loader2, Save, Sparkles } from 'lucide-react';
+
+type AuthStatus = 'ready' | 'missing' | 'invalid';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -12,6 +14,7 @@ export default function Admin() {
   const [uploading, setUploading] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [initializing, setInitializing] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(adminToken.has() ? 'ready' : 'missing');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -98,8 +101,15 @@ export default function Admin() {
       try {
         const url = await api.uploadImage(e.target.files[0]);
         setFormData(prev => ({ ...prev, imageUrl: url }));
+        setAuthStatus('ready');
       } catch (error) {
         console.error('Upload failed:', error);
+        const status = (error as { status?: number }).status;
+        if (status === 401) {
+          setAuthStatus('invalid');
+          alert('管理密钥无效或未配置，请重新输入。');
+          return;
+        }
         alert('Upload failed, please try again.');
       } finally {
         setUploading(false);
@@ -124,6 +134,7 @@ export default function Admin() {
           tags: tagsArray
         });
         alert('Project updated successfully!');
+        setAuthStatus('ready');
         navigate('/admin');
       } else {
         await api.createProject({
@@ -136,10 +147,17 @@ export default function Admin() {
         });
 
         alert('Project created successfully!');
+        setAuthStatus('ready');
         navigate('/');
       }
     } catch (error) {
       console.error('Failed to save project:', error);
+      const status = (error as { status?: number }).status;
+      if (status === 401) {
+        setAuthStatus('invalid');
+        alert('管理密钥无效或未配置，请重新输入。');
+        return;
+      }
       alert('Failed to save project.');
     } finally {
       setLoading(false);
@@ -157,6 +175,43 @@ export default function Admin() {
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
         </button>
+
+        <div className="mb-6 rounded-xl border border-[var(--line)] bg-white px-5 py-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)] mb-1">Admin Access</p>
+              <p className="text-sm text-[var(--ink)]">
+                {authStatus === 'ready' && '管理写入密钥已设置，可进行新增/编辑操作。'}
+                {authStatus === 'missing' && '未检测到管理写入密钥，提交保存前需要输入密钥。'}
+                {authStatus === 'invalid' && '管理写入密钥无效，请重新输入。'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const token = adminToken.prompt(authStatus !== 'missing');
+                  setAuthStatus(token ? 'ready' : 'missing');
+                }}
+                className="px-3 py-1.5 text-xs font-medium rounded-full border border-[var(--line)] text-[var(--ink)] hover:border-[var(--ink)] transition-colors"
+              >
+                {authStatus === 'ready' ? '更新密钥' : '输入密钥'}
+              </button>
+              {authStatus !== 'missing' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    adminToken.clear();
+                    setAuthStatus('missing');
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium rounded-full border border-red-200 text-red-600 hover:border-red-400 transition-colors"
+                >
+                  清除密钥
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-[var(--line)]">
           <h2 className="font-playfair text-3xl text-[var(--ink)] mb-8">
