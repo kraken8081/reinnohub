@@ -11,9 +11,10 @@ type ProjectsCachePayload = {
   version: 1;
   timestamp: number;
   data: Project[];
+  listVersion: string | null;
 };
 
-const readProjectsCache = (): Project[] | null => {
+const readProjectsCache = (): ProjectsCachePayload | null => {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -29,13 +30,13 @@ const readProjectsCache = (): Project[] | null => {
     if (Date.now() - parsed.timestamp > PROJECTS_CACHE_TTL_MS) {
       return null;
     }
-    return parsed.data;
+    return parsed;
   } catch {
     return null;
   }
 };
 
-const writeProjectsCache = (data: Project[]) => {
+const writeProjectsCache = (data: Project[], listVersion: string | null) => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -43,7 +44,8 @@ const writeProjectsCache = (data: Project[]) => {
     const payload: ProjectsCachePayload = {
       version: 1,
       timestamp: Date.now(),
-      data
+      data,
+      listVersion
     };
     window.localStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify(payload));
   } catch {
@@ -56,30 +58,62 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
     const cached = readProjectsCache();
-    if (cached) {
-      setProjects(cached);
+    const hasCached = Boolean(cached);
+
+    if (cached && isActive) {
+      setProjects(cached.data);
       setLoading(false);
     }
 
-    const fetchProjects = async () => {
+    const fetchProjects = async (fresh: boolean, listVersion: string | null) => {
       try {
-        const data = await api.getProjects();
+        const data = await api.getProjects({ fresh });
+        if (!isActive) {
+          return;
+        }
         setProjects(data);
-        writeProjectsCache(data);
+        writeProjectsCache(data, listVersion);
       } catch (error) {
         console.error('Failed to load projects:', error);
-        if (!cached) {
-          setLoading(false);
-        }
       } finally {
-        if (!cached) {
+        if (!hasCached && isActive) {
           setLoading(false);
         }
       }
     };
 
-    fetchProjects();
+    const syncProjects = async () => {
+      try {
+        const remoteVersion = await api.getProjectsVersion();
+        const cachedVersion = cached?.listVersion ?? null;
+
+        if (remoteVersion !== cachedVersion) {
+          await fetchProjects(true, remoteVersion);
+          return;
+        }
+
+        if (!hasCached) {
+          await fetchProjects(false, remoteVersion);
+        }
+      } catch (error) {
+        console.error('Failed to sync project version:', error);
+        if (!hasCached) {
+          await fetchProjects(false, cached?.listVersion ?? null);
+        }
+      } finally {
+        if (!hasCached && isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    syncProjects();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   return (

@@ -81,6 +81,31 @@ function requireAdmin(req: VercelRequest, res: VercelResponse) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
+    const versionOnly = req.query.version === '1';
+    if (versionOnly) {
+      res.setHeader(
+        'Cache-Control',
+        'public, max-age=60, s-maxage=300, stale-while-revalidate=3600'
+      );
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('updated_at, created_at')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        res.status(500).json({ error: error.message });
+        return;
+      }
+
+      const row = data?.[0];
+      const version = row?.updated_at || row?.created_at || null;
+      res.status(200).json({ version });
+      return;
+    }
+
     const fresh = req.query.fresh === '1';
     if (fresh) {
       res.setHeader('Cache-Control', 'no-store');

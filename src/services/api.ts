@@ -107,6 +107,14 @@ export const api = {
     return (await response.json()) as Project[];
   },
 
+  // Get latest update version (timestamp) for projects list
+  getProjectsVersion: async (): Promise<string | null> => {
+    const response = await fetch(`${API_BASE_URL}/projects?version=1`);
+    await requireOk(response);
+    const payload = (await response.json()) as { version?: string | null };
+    return payload?.version ?? null;
+  },
+
   // Get single project
   getProject: async (id: string): Promise<Project> => {
     const response = await fetch(`${API_BASE_URL}/projects/${id}`);
