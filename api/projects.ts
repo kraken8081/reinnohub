@@ -7,6 +7,7 @@ const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const adminToken = process.env.ADMIN_WRITE_TOKEN;
+const storageBucket = 'project-images';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -41,6 +42,13 @@ function toProxyImageUrl(imageUrl: string) {
   if (match) {
     return `/api/storage/${match[1]}/${match[2]}`;
   }
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  const normalizedPath = imageUrl.startsWith('screenshots/')
+    ? imageUrl
+    : `screenshots/${imageUrl}`;
+  return `/api/storage/${storageBucket}/${normalizedPath}`;
   return imageUrl;
 }
 

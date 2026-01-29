@@ -25,6 +25,17 @@ export default function Admin() {
     content: ''
   });
 
+  const resolveImageUrl = (value: string) => {
+    if (!value) {
+      return '';
+    }
+    if (value.startsWith('/api/storage/') || value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    const normalizedPath = value.startsWith('screenshots/') ? value : `screenshots/${value}`;
+    return `/api/storage/project-images/${normalizedPath}`;
+  };
+
   useEffect(() => {
     if (!id) {
       return;
@@ -100,7 +111,7 @@ export default function Admin() {
       setUploading(true);
       try {
         const url = await api.uploadImage(e.target.files[0]);
-        setFormData(prev => ({ ...prev, imageUrl: url }));
+        setFormData(prev => ({ ...prev, imageUrl: resolveImageUrl(url) }));
         setAuthStatus('ready');
       } catch (error) {
         console.error('Upload failed:', error);
@@ -308,7 +319,11 @@ export default function Admin() {
                 <div className="space-y-1 text-center">
                   {formData.imageUrl ? (
                     <div className="relative">
-                      <img src={formData.imageUrl} alt="Preview" className="mx-auto h-48 object-cover rounded-md" />
+                      <img
+                        src={resolveImageUrl(formData.imageUrl)}
+                        alt="Preview"
+                        className="mx-auto h-48 object-cover rounded-md"
+                      />
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
