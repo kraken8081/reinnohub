@@ -8,6 +8,7 @@ const supabaseUrl =
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const adminToken = process.env.ADMIN_WRITE_TOKEN;
 const storageBucket = 'project-images';
+const encodeStoragePath = (path: string) => encodeURIComponent(path);
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -35,7 +36,14 @@ function toProxyImageUrl(imageUrl: string) {
   if (!imageUrl) {
     return '';
   }
+  if (imageUrl.startsWith('/api/storage?')) {
+    return imageUrl;
+  }
   if (imageUrl.startsWith('/api/storage/')) {
+    const match = imageUrl.match(/^\/api\/storage\/([^/]+)\/(.+)$/);
+    if (match) {
+      return `/api/storage?bucket=${match[1]}&path=${encodeStoragePath(match[2])}`;
+    }
     return imageUrl;
   }
   if (imageUrl.startsWith('data:')) {
@@ -43,7 +51,7 @@ function toProxyImageUrl(imageUrl: string) {
   }
   const match = imageUrl.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
   if (match) {
-    return `/api/storage/${match[1]}/${match[2]}`;
+    return `/api/storage?bucket=${match[1]}&path=${encodeStoragePath(match[2])}`;
   }
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     return imageUrl;
@@ -51,7 +59,7 @@ function toProxyImageUrl(imageUrl: string) {
   const normalizedPath = imageUrl.startsWith('screenshots/')
     ? imageUrl
     : `screenshots/${imageUrl}`;
-  return `/api/storage/${storageBucket}/${normalizedPath}`;
+  return `/api/storage?bucket=${storageBucket}&path=${encodeStoragePath(normalizedPath)}`;
   return imageUrl;
 }
 

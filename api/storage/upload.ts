@@ -172,8 +172,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const encodedPath = encodeURIComponent(filePath);
   res.status(200).json({
-    url: `/api/storage/${bucketName}/${filePath}`,
+    url: `/api/storage?bucket=${bucketName}&path=${encodedPath}`,
     path: filePath
   });
 }

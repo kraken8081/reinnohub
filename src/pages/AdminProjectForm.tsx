@@ -32,11 +32,22 @@ export default function Admin() {
     if (value.startsWith('data:')) {
       return value;
     }
+    if (value.startsWith('/api/storage?')) {
+      return value;
+    }
     if (value.startsWith('/api/storage/') || value.startsWith('http://') || value.startsWith('https://')) {
+      if (value.startsWith('/api/storage/')) {
+        const match = value.match(/^\/api\/storage\/([^/]+)\/(.+)$/);
+        if (match) {
+          const encoded = encodeURIComponent(match[2]);
+          return `/api/storage?bucket=${match[1]}&path=${encoded}`;
+        }
+      }
       return value;
     }
     const normalizedPath = value.startsWith('screenshots/') ? value : `screenshots/${value}`;
-    return `/api/storage/project-images/${normalizedPath}`;
+    const encoded = encodeURIComponent(normalizedPath);
+    return `/api/storage?bucket=project-images&path=${encoded}`;
   };
 
   useEffect(() => {
