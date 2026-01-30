@@ -38,6 +38,9 @@ function toProxyImageUrl(imageUrl: string) {
   if (imageUrl.startsWith('/api/storage/')) {
     return imageUrl;
   }
+  if (imageUrl.startsWith('data:')) {
+    return imageUrl;
+  }
   const match = imageUrl.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
   if (match) {
     return `/api/storage/${match[1]}/${match[2]}`;

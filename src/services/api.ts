@@ -163,29 +163,15 @@ export const api = {
 
   // Upload an image to Supabase Storage
   uploadImage: async (file: File): Promise<string> => {
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = typeof reader.result === 'string' ? reader.result : '';
-        resolve(result);
-      };
-      reader.onerror = () => {
-        reject(reader.error || new Error('Failed to read file'));
-      };
-      reader.readAsDataURL(file);
-    });
+    const formData = new FormData();
+    formData.append('file', file, file.name);
 
     const response = await fetch(`${API_BASE_URL}/storage/upload`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         ...withAdminHeaders()
       },
-      body: JSON.stringify({
-        filename: file.name,
-        contentType: file.type,
-        data: base64
-      })
+      body: formData
     });
 
     await requireOk(response);

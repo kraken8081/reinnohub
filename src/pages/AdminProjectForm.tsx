@@ -29,6 +29,9 @@ export default function Admin() {
     if (!value) {
       return '';
     }
+    if (value.startsWith('data:')) {
+      return value;
+    }
     if (value.startsWith('/api/storage/') || value.startsWith('http://') || value.startsWith('https://')) {
       return value;
     }
@@ -108,9 +111,15 @@ export default function Admin() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('图片过大，请选择小于 5MB 的文件。');
+        return;
+      }
       setUploading(true);
       try {
-        const url = await api.uploadImage(e.target.files[0]);
+        const url = await api.uploadImage(file);
         setFormData(prev => ({ ...prev, imageUrl: resolveImageUrl(url) }));
         setAuthStatus('ready');
       } catch (error) {
