@@ -36,6 +36,20 @@
 | **Build** | Vite 7, PostCSS, Autoprefixer |
 | **State** | Zustand, React Router DOM |
 
+## Production Architecture (Vercel + Supabase)
+
+```mermaid
+flowchart LR
+  U[User Browser] --> D[Custom Domain<br/>reinnohub.tech]
+  D --> FE[Vercel Frontend<br/>Vite + React SPA]
+  FE -->|/api/projects| API[Vercel Serverless API]
+  FE -->|/api/storage/*| API
+  API --> DB[(Supabase Postgres)]
+  API --> ST[Supabase Storage]
+  A[Admin Browser] --> FE
+  FE -->|x-admin-token| API
+```
+
 ## Quick Start
 
 ```bash
