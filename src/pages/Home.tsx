@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import ProjectCard from '../components/ProjectCard';
@@ -6,6 +6,13 @@ import { api, Project } from '../services/api';
 
 const PROJECTS_CACHE_KEY = 'projects_cache_v1';
 const PROJECTS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const VALUE_ITEMS = [
+  { title: '选题雷达', desc: '追踪再保险前沿议题与行业动态，避免信息滞后。' },
+  { title: '项目拆解', desc: '结构化拆解方案路径、关键流程与落地难点。' },
+  { title: '可复用方案', desc: '聚焦可复制的方法与组件，缩短团队试错周期。' },
+  { title: '工具对比', desc: '沉淀供应商与工具差异，辅助选型决策。' }
+];
+const SKELETON_CARDS = Array.from({ length: 6 });
 
 type ProjectsCachePayload = {
   version: 1;
@@ -56,6 +63,7 @@ const writeProjectsCache = (data: Project[], listVersion: string | null) => {
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTag, setActiveTag] = useState('全部');
 
   useEffect(() => {
     let isActive = true;
@@ -116,6 +124,25 @@ export default function Home() {
     };
   }, []);
 
+  const tagOptions = useMemo(() => {
+    const tags = new Set<string>();
+    projects.forEach(project => {
+      (project.tags || []).forEach(tag => {
+        if (tag) {
+          tags.add(tag);
+        }
+      });
+    });
+    return ['全部', ...Array.from(tags)];
+  }, [projects]);
+
+  const filteredProjects = useMemo(() => {
+    if (activeTag === '全部') {
+      return projects;
+    }
+    return projects.filter(project => (project.tags || []).includes(activeTag));
+  }, [projects, activeTag]);
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* 背景装饰 */}
@@ -158,25 +185,103 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Value Proposition */}
+        <section className="mb-12 grid gap-8 lg:grid-cols-[1.1fr_1.9fr] items-start">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--muted)] mb-3">你能在这里获得什么</p>
+            <h3 className="font-playfair text-2xl sm:text-3xl text-[var(--ink)] leading-tight">
+              面向再保险创新的可复用知识库
+            </h3>
+            <p className="text-[var(--muted)] text-sm leading-relaxed mt-4 max-w-sm">
+              以编辑视角聚合行业案例，帮助你快速判断趋势、复用方法、推动落地。
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {VALUE_ITEMS.map(item => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-[var(--line)] bg-white/70 backdrop-blur-sm p-4 shadow-[0_6px_16px_rgba(0,0,0,0.04)]"
+              >
+                <p className="text-xs uppercase tracking-[0.32em] text-[var(--accent)] mb-2">{item.title}</p>
+                <p className="text-sm text-[var(--muted)] leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <div className="my-10 h-px w-full bg-[var(--line)]" />
 
         {/* 项目计数 */}
         <div className="mb-6 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-[var(--muted)]">
           <span>最新项目</span>
-          <span>{loading ? '加载中...' : `${projects.length} 个项目`}</span>
+          <span>
+            {loading ? '加载中…' : `${filteredProjects.length} / ${projects.length} 个项目`}
+          </span>
+        </div>
+
+        {/* 筛选 */}
+        <div className="mb-8 flex flex-wrap items-center gap-3">
+          <span className="text-[10px] uppercase tracking-[0.35em] text-[var(--muted)]">筛选</span>
+          <div className="flex flex-wrap gap-2">
+            {tagOptions.map(tag => {
+              const isActive = tag === activeTag;
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setActiveTag(tag)}
+                  className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
+                    isActive
+                      ? 'border-[var(--ink)] bg-[var(--ink)] text-white'
+                      : 'border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* 统一网格布局 */}
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-pulse text-[var(--muted)] tracking-widest text-xs">LOADING...</div>
-          </div>
-        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project, index) => (
-              <ProjectCard key={project.id} project={project} index={index} />
+            {SKELETON_CARDS.map((_, index) => (
+              <div
+                key={`skeleton-${index}`}
+                className="h-[420px] rounded-2xl border border-black/[0.04] bg-white/70 backdrop-blur-sm p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.02)]"
+              >
+                <div className="h-[180px] rounded-xl skeleton" />
+                <div className="mt-4 space-y-3">
+                  <div className="flex gap-2">
+                    <span className="h-4 w-16 rounded-full skeleton" />
+                    <span className="h-4 w-12 rounded-full skeleton" />
+                  </div>
+                  <div className="h-5 w-5/6 rounded skeleton" />
+                  <div className="h-4 w-full rounded skeleton" />
+                  <div className="h-4 w-4/5 rounded skeleton" />
+                  <div className="mt-4 flex items-center justify-between pt-3 border-t border-[var(--line)]/40">
+                    <span className="h-3 w-16 rounded skeleton" />
+                    <span className="h-3 w-12 rounded skeleton" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
+        ) : (
+          <>
+            {filteredProjects.length === 0 ? (
+              <div className="rounded-2xl border border-[var(--line)] bg-white/70 p-10 text-center text-[var(--muted)]">
+                暂无匹配项目，请尝试其他标签。
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProjects.map((project, index) => (
+                  <ProjectCard key={project.id} project={project} index={index} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -185,9 +290,16 @@ export default function Home() {
         <p className="text-sm text-[var(--muted)] mb-2">
           <span className="font-playfair font-semibold">ReInnoHub</span> · 再保险创新中心 · 2025
         </p>
-        <Link to="/admin" className="text-[10px] text-[var(--line)] hover:text-[var(--muted)] uppercase tracking-widest transition-colors">
-          Admin Access
-        </Link>
+        <div className="flex items-center justify-center gap-3 text-[9px] uppercase tracking-[0.3em] text-[var(--line)]/80">
+          <span>内部管理</span>
+          <span className="h-px w-6 bg-[var(--line)]/70" />
+          <Link
+            to="/admin"
+            className="opacity-60 hover:opacity-100 transition-opacity"
+          >
+            管理入口
+          </Link>
+        </div>
       </footer>
     </div>
   );
